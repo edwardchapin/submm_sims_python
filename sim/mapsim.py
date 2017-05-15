@@ -27,9 +27,11 @@ fmin = 0.1    # min flux to consider in extrapolation
 nci  = 10     # number of points in interpolated integral counts
 pixres = 2    # arcsec / pixel scuba-2 simulated map
 n      = 900  # number of pixels on a side of square scuba-2 simulated map
-sc2_fudge = 6.13 # fudge factor for raw pixel noise in SC2 maps
-sc2_noise = 1.1 # mJy noise in smoothed source-finding SC2 maps
-flux_thresh = 5.0 #10 # scuba-2 flux threshold to find sources
+#sc2_fudge = 6.13 # fudge factor for raw pixel noise in SC2 maps
+#CLS map noise is average of field noises weighted by areas
+sc2_noise = 1.34 # mJy noise in smoothed source-finding SC2 maps
+#Faintest source folowed up in our survey
+flux_thresh = 6.0 #10 # scuba-2 flux threshold to find sources
 plot_thresh = 1  # scuba-2 flux threshold to plot input sources
 
 area = (n*pixres/3600.)**2. # area of scuba-2 simulated map
@@ -37,8 +39,9 @@ area = (n*pixres/3600.)**2. # area of scuba-2 simulated map
 sma_pixres = 0.2               # arcsec / pixel for sma maps
 sma_thumb = 18/sma_pixres      # pixels on side of SMA thumbnail
 sma_fwhm = 1./sma_pixres       # pixels
-sma_noise = 1.25               # SMA noise in mJy
-sma_fudge = 7.59               # fudge factor raw pixel noise SMA maps
+#Mean noise from each pointing
+sma_noise = 1.54              # SMA noise in mJy
+#sma_fudge = 7.59               # fudge factor raw pixel noise SMA maps
 rsearch = 9                    # arcsec search radius
 
 sma_thumb = int(sma_thumb)
@@ -144,6 +147,7 @@ for run in range(nruns):
     print 'max pixel coordinates:',x[imax]/pixres,y[imax]/pixres,f[imax]
 
     rawmap = np.zeros((n,n))
+    psf_smooth = convolve(psf,psf)
 
     for i in range(ngal):
         rawmap[int(y[i]/pixres),int(x[i])/pixres] += f[i]
@@ -151,11 +155,10 @@ for run in range(nruns):
     map_beam = convolve_fft(rawmap, psf)
     map_smooth_noiseless = convolve_fft(map_beam,psf)
 
-    map_noise = np.random.normal(size=(n,n))*sc2_fudge*sc2_noise
+    map_noise = np.random.normal(size=(n,n))*sc2_noise*np.sqrt(np.max(psf_smooth))
     map_beam += map_noise #np.random.normal(size=(n,n))*noise
 
     map_smooth = convolve_fft(map_beam, psf)
-    psf_smooth = convolve(psf,psf)
     map_smooth = map_smooth / np.max(psf_smooth)
     map_smooth_noiseless = map_smooth_noiseless / np.max(psf_smooth)
     noise_smooth = convolve_fft(map_noise, psf) / np.max(psf_smooth)
@@ -233,12 +236,13 @@ for run in range(nruns):
 
         # Create an SMA noise map with the right RMS
         sma_noisemap = convolve(np.random.normal(size=(sma_thumb,sma_thumb)),
-                                    sma_psf) * sma_fudge * sma_noise
+                                    sma_psf)*sma_noise/np.sqrt(np.max(convolve(sma_psf,sma_psf)))
 
         # Create a smooth SMA signal map with the noise added to it
         sma_smooth = convolve(sma_raw, sma_psf)/np.max(sma_psf) + sma_noisemap
         h_sma = fits.PrimaryHDU(sma_smooth)
-        h_sma.writeto(thumbsdir+'/sma'+str(count)+'.fits', overwrite=True)
+        #Changed 'overwrite' to 'clobber', using older Astropy version
+        h_sma.writeto(thumbsdir+'/sma'+str(count)+'.fits', clobber=True)
 
         # Plot of the simulated SMA map with input sources shown
         fig = plt.figure(figsize=(4.5,4.5), dpi=100)
@@ -260,10 +264,12 @@ for run in range(nruns):
         i_bright = all_f_thumb >= thresh
         i_faint = all_f_thumb < thresh
 
+        #Red points brighter than SMA noise
         plt.scatter((all_x_thumb[i_bright]-0.5*sma_thumb)*sma_pixres,
                     (all_y_thumb[i_bright]-0.5*sma_thumb)*sma_pixres,
                     s=15,
                     facecolors='none', edgecolors='r')
+        #Yellow points fainter than SMA noise
         plt.scatter((all_x_thumb[i_faint]-0.5*sma_thumb)*sma_pixres,
                     (all_y_thumb[i_faint]-0.5*sma_thumb)*sma_pixres,
                     s=5,
@@ -276,6 +282,7 @@ for run in range(nruns):
         sma_y = [p['y_peak'] for p in peaks_thumb]
         sma_f = [p['peak_value'] for p in peaks_thumb]
         for p in peaks_thumb:
+            #Blue circles are detected peaks found in SMA image
             plt.scatter((p['x_peak']-0.5*sma_thumb)*sma_pixres,
                         (p['y_peak']-0.5*sma_thumb)*sma_pixres,
                         s=100,
@@ -333,8 +340,9 @@ for run in range(nruns):
 
         # create new FITS file
         h_new = fits.PrimaryHDU(themap)
+        #Changed 'overwrite' to 'clobber', using older Astropy version
         h_new.writeto(results_dir+'/sim_'+str(run)+whichmap+'.fits',
-                      overwrite=True)
+                      clobber=True)
 
         # Plot of the simulated map with found peaks and input sources
         fig = plt.figure(figsize=(8,8), dpi=100)
@@ -343,13 +351,13 @@ for run in range(nruns):
                         vmin=vmin, vmax=vmax,
                         extent=np.array([-0.5,0.5,-0.5,0.5])*n*pixres)
         #plt.imshow(map_beam, cmap='gray', interpolation='none')
-
+        #Plot sources with S>cutoff in red
         plt.scatter((peaks['x_peak']-0.5*n)*pixres,
                     (peaks['y_peak']-0.5*n)*pixres,
                     s=100*pixres,
                     facecolors='none',
                     edgecolors='r')
-
+        #Plot sources with S>1mJy in blue
         i = f > 1
         plt.scatter((x_pix[i]-0.5*n)*pixres,
                     (y_pix[i]-0.5*n)*pixres,
