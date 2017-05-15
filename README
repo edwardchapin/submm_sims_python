@@ -1,3 +1,16 @@
+Authors:
+Ed Chapin (ed.chapin@nrc-cnrc.gc.ca)
+Ryley Hill (ryleyhill@phas.ubc.ca)
+
+Some Python scripts to simulate a single-dish submm survey and
+interferometric follow-up.
+
+Note that these depend on a couple of binary FITS files in
+subdirectory cls/ which have not been included in this repository
+(these are maps that were produced as part of the SCUBA-2 Cosmology
+Legacy Survey data reduction pipeline). Contact the authors directly
+if you wish to obtain them.
+
 To run simulations:
 
 cd sim
@@ -5,8 +18,6 @@ cd sim
 
 To create plots
 ./plots.py
-
-Note that these depend on a couple of FITS files in ../cls.
 
 You can control the number of realizations of the simulation (currently 10)
 by fiddling "nruns" in each of those Python scripts. There are also
