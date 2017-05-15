@@ -1,0 +1,17 @@
+To run simulations:
+
+cd sim
+./mapsim.py
+
+To create plots
+./plots.py
+
+Note that these depend on a couple of FITS files in ../cls.
+
+You can control the number of realizations of the simulation (currently 10)
+by fiddling "nruns" in each of those Python scripts. There are also
+various other constants you can change in mapsim, like:
+
+sc2_noise: noise in mJy of final smoothed SCUBA-2 maps
+sma_noise: noise in mJy of the SMA maps
+  rsearch: search radius (arcsec) for counterpart identification
