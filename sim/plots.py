@@ -5,8 +5,8 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 
-results_dir='results/'
-nruns = 10
+results_dir='results_UDS/'
+nruns = 1
 rsearch = 9 # how far away to consider source from SC2 peak, arcsec
 
 axis_range = [0,20,-0.1,2.1]

@@ -19,28 +19,29 @@ import os
 plotsources = False
 
 # how many runs to do / where to store results
-nruns = 10
-results_dir = 'results/'
+nruns = 1
+results_dir = 'results_UDS/'
 
 # define some constants for the simulation
 fmin = 0.1    # min flux to consider in extrapolation
 nci  = 10     # number of points in interpolated integral counts
 pixres = 2    # arcsec / pixel scuba-2 simulated map
-n      = 900  # number of pixels on a side of square scuba-2 simulated map
+#n      = 1764  # number of pixels on a side of square scuba-2 simulated map
+n=900
 #sc2_fudge = 6.13 # fudge factor for raw pixel noise in SC2 maps
 #CLS map noise is average of field noises weighted by areas
-sc2_noise = 1.34 # mJy noise in smoothed source-finding SC2 maps
+sc2_noise = 0.9 # mJy noise in smoothed source-finding SC2 maps
 #Faintest source folowed up in our survey
-flux_thresh = 6.0 #10 # scuba-2 flux threshold to find sources
+flux_thresh = 8.0 #10 # scuba-2 flux threshold to find sources
 plot_thresh = 1  # scuba-2 flux threshold to plot input sources
 
 area = (n*pixres/3600.)**2. # area of scuba-2 simulated map
 
-sma_pixres = 0.2               # arcsec / pixel for sma maps
-sma_thumb = 18/sma_pixres      # pixels on side of SMA thumbnail
-sma_fwhm = 1./sma_pixres       # pixels
+sma_pixres = 0.1               # arcsec / pixel for sma maps
+sma_thumb = 51.2/sma_pixres      # pixels on side of SMA thumbnail
+sma_fwhm = 2.4/sma_pixres       # pixels
 #Mean noise from each pointing
-sma_noise = 1.54              # SMA noise in mJy
+sma_noise = 1.3              # SMA noise in mJy
 #sma_fudge = 7.59               # fudge factor raw pixel noise SMA maps
 rsearch = 9                    # arcsec search radius
 
@@ -70,7 +71,7 @@ h.close()
 #h.close()
 
 
-sma_psf = Gaussian2DKernel(stddev=sma_fwhm/2.34)
+sma_psf = Gaussian2DKernel(stddev=sma_fwhm/(2*np.sqrt(2*np.log(2))))
 
 # write out pickled psf
 with open(results_dir+'/psf.pickle','wb') as outfile:
@@ -79,48 +80,73 @@ with open(results_dir+'/psf.pickle','wb') as outfile:
 
 # counts from Simpson et al. 2015 -------------------------------------------
 
-def calcscale(x):
-    m = (x[1][0] - x[0][0]) / float(x[1][1] - x[0][1])
-    b = x[0][0] - m*x[0][1]
+#def calcscale(x):
+#    m = (x[1][0] - x[0][0]) / float(x[1][1] - x[0][1])
+#    b = x[0][0] - m*x[0][1]
+#
+#    return m, b
+#
+#fscale = [ (0,113), (1,542) ] # log flux
+#cscale = [ (0,414), (5,33) ] # log cumulative counts
+#samples = [(114,153), (209,186), (287,211), (381,244), (450,267), (480,284),
+#           (501,303), (523,323), (550,348), (575,372), (597,394), (618,410),
+#           (712,452)]
+#
+#fm,fb = calcscale(fscale)
+#cm,cb = calcscale(cscale)
+#
+#f = 10.**np.array([i[0]*fm + fb for i in samples] )
+#ci = 10.**np.array([i[1]*cm + cb for i in samples] )
+#
+## extrapolate to small flux values
+#m = (np.log10(ci[1])-np.log10(ci[0])) / (np.log10(f[1])-np.log10(f[0]))
+#b = np.log10(ci[0]) - m*np.log10(f[0])
+#
+#f = np.append( [fmin], f )
+#ci = np.append( [10.**(m*np.log10(fmin) + b)], ci )
+#
+## interpolate integral counts on to a finer grid
+#f_interp = interpolate.interp1d(np.log10(f),np.log10(ci))
+#
+#f = 10.**np.linspace(np.log10(min(f)),np.log10(max(f)),num=nci)
+#ci = 10.**f_interp(np.log10(f))
+#
+#
+## calculate the differential counts in logarithmic bins to use as pdf
+#logfbin = np.log10(f)
+#cd = ci[0:-1] - ci[1:]
 
-    return m, b
+Smin=0.1
+Smax=40
 
-fscale = [ (0,113), (1,542) ] # log flux
-cscale = [ (0,414), (5,33) ] # log cumulative counts
-samples = [(114,153), (209,186), (287,211), (381,244), (450,267), (480,284),
-           (501,303), (523,323), (550,348), (575,372), (597,394), (618,410),
-           (712,452)]
-
-fm,fb = calcscale(fscale)
-cm,cb = calcscale(cscale)
-
-f = 10.**np.array([i[0]*fm + fb for i in samples] )
-ci = 10.**np.array([i[1]*cm + cb for i in samples] )
-
-# extrapolate to small flux values
-m = (np.log10(ci[1])-np.log10(ci[0])) / (np.log10(f[1])-np.log10(f[0]))
-b = np.log10(ci[0]) - m*np.log10(f[0])
-
-f = np.append( [fmin], f )
-ci = np.append( [10.**(m*np.log10(fmin) + b)], ci )
-
-# interpolate integral counts on to a finer grid
-f_interp = interpolate.interp1d(np.log10(f),np.log10(ci))
-
-f = 10.**np.linspace(np.log10(min(f)),np.log10(max(f)),num=nci)
-ci = 10.**f_interp(np.log10(f))
-
-
-# calculate the differential counts in logarithmic bins to use as pdf
-logfbin = np.log10(f)
-cd = ci[0:-1] - ci[1:]
-
+def prior_count_casey(S):
+    gamma=1.4
+    S0=3.7
+    N0=3300.
+    if isinstance(S,int) or isinstance(S,float):
+        if (S > Smin) and (S < Smax):
+            p=(N0/S0)*(S/S0)**-gamma*np.exp(-S/S0)
+        else:
+            p=0
+    else:
+        p=[]
+        for s in S:
+            if (s > Smin) and (s < Smax):
+                p.append((N0/S0)*(s/S0)**-gamma*np.exp(-s/S0))
+            else:
+                p.append(0)
+        p=np.array(p)
+    return p
+    
+dfbin=0.1
+fbin=np.array([Smin+i*dfbin for i in range(int(round((Smax-Smin)/dfbin+1)))])
+cd=prior_count_casey([0.5*(fbin[i]+fbin[i+1]) for i in range(len(fbin)-1)])
 
 # -----------------------------------------------------------------------------
 
 for run in range(nruns):
 
-    print run,'/',nruns,'----------------------------------------------'
+    print(run,'/',nruns,'----------------------------------------------')
 
     thumbsdir = results_dir+'/thumbs'+str(run)
     try:
@@ -128,23 +154,23 @@ for run in range(nruns):
     except Exception as e:
         pass
 
-    print max(ci), area
-    ngal = int(area * max(ci))
-    print 'ngal > ',fmin,':',ngal
+    #print(max(ci), area)
+    ngal = int(np.sum(cd)*dfbin*area)
+    print('ngal > ',fmin,':',ngal)
 
     # draw fluxes from distribution
-    f = 10.**drawdist1d(cd,logfbin,ngal)
+    f = drawdist1d(cd,fbin,ngal)
 
     # choose random positions
-    x_pix = np.random.uniform(1, n, ngal)
-    y_pix = np.random.uniform(1, n, ngal)
+    x_pix = np.random.uniform(0, n-1, ngal)
+    y_pix = np.random.uniform(0, n-1, ngal)
     x = x_pix*pixres # arcsec
     y = y_pix*pixres
 
 
     # get x,y,f of max value as a check
     imax = np.argmax(f)
-    print 'max pixel coordinates:',x[imax]/pixres,y[imax]/pixres,f[imax]
+    print('max pixel coordinates:',x[imax]/pixres,y[imax]/pixres,f[imax])
 
     rawmap = np.zeros((n,n))
     psf_smooth = convolve(psf,psf)
@@ -179,12 +205,12 @@ for run in range(nruns):
     #m3.writeto('m3.fits', overwrite=True)
     #sys.exit(1)
     
-    print "stuff:",np.max(rawmap),np.max(map_beam),np.max(map_smooth)
+    print("stuff:",np.max(rawmap),np.max(map_beam),np.max(map_smooth))
     map_rms = np.std(noise_smooth)
-    print "smooth map noise rms:", map_rms
+    print("smooth map noise rms:", map_rms)
 
     # find peaks
-    peaks = find_peaks(map_smooth,flux_thresh)
+    peaks = find_peaks(map_smooth,flux_thresh,border_width=15)
 
     # generate SMA maps around these peaks. Descending flux order
     count = 0
@@ -206,7 +232,7 @@ for run in range(nruns):
         p_x = p_xpix*pixres  # convert to arcsec from pixels
         p_y = p_ypix*pixres
 
-        print count,'peak pixel',p_xpix, p_ypix, p_f, p_f_noiseless
+        print(count,'peak pixel',p_xpix, p_ypix, p_f, p_f_noiseless)
 
         sma_raw = np.zeros((sma_thumb, sma_thumb))
         all_i = [] # indices of input sources from master list in thumb
@@ -277,7 +303,7 @@ for run in range(nruns):
 
 
         # find SMA peaks and show in blue
-        peaks_thumb = find_peaks(sma_smooth,sma_thresh)
+        peaks_thumb = find_peaks(sma_smooth,sma_thresh,border_width=3)
         sma_x = [p['x_peak'] for p in peaks_thumb]
         sma_y = [p['y_peak'] for p in peaks_thumb]
         sma_f = [p['peak_value'] for p in peaks_thumb]
