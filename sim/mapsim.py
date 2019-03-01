@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # Create a map of point sources with fluxes drawn from counts
 # distribution
 
@@ -173,21 +173,21 @@ for run in range(nruns):
     print('max pixel coordinates:',x[imax]/pixres,y[imax]/pixres,f[imax])
 
     rawmap = np.zeros((n,n))
-    psf_smooth = convolve(psf,psf)
+    psf_smooth = convolve(psf,psf,normalize_kernel=False)
 
     for i in range(ngal):
-        rawmap[int(y[i]/pixres),int(x[i])/pixres] += f[i]
+        rawmap[int(y[i]/pixres),int(x[i]/pixres)] += f[i]
 
-    map_beam = convolve_fft(rawmap, psf)
-    map_smooth_noiseless = convolve_fft(map_beam,psf)
+    map_beam = convolve_fft(rawmap, psf, normalize_kernel=False)
+    map_smooth_noiseless = convolve_fft(map_beam, psf, normalize_kernel=False)
 
     map_noise = np.random.normal(size=(n,n))*sc2_noise*np.sqrt(np.max(psf_smooth))
     map_beam += map_noise #np.random.normal(size=(n,n))*noise
 
-    map_smooth = convolve_fft(map_beam, psf)
+    map_smooth = convolve_fft(map_beam, psf, normalize_kernel=False)
     map_smooth = map_smooth / np.max(psf_smooth)
     map_smooth_noiseless = map_smooth_noiseless / np.max(psf_smooth)
-    noise_smooth = convolve_fft(map_noise, psf) / np.max(psf_smooth)
+    noise_smooth = convolve_fft(map_noise, psf, normalize_kernel=False) / np.max(psf_smooth)
 
     #scale = np.sqrt(1./(1.1**2.*np.sum(psf**2)))
     #psf = scale*psf

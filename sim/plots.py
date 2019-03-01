@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # Create plots from sims
 
 import numpy as np
@@ -17,7 +17,7 @@ linesymbolcut = 'k:'
 
 sc2cut = 8
 
-print 'Combine data from sims...'
+print('Combine data from sims...')
 stats = []
 allmapnoise = []
 for i in range(nruns):
@@ -25,7 +25,7 @@ for i in range(nruns):
         data = pickle.load(f)
     stats.extend(data['stats'])
     mapnoise = data['mapnoise']
-    print mapnoise
+    print(mapnoise)
     allmapnoise.append(mapnoise)
 
 with open(results_dir+'psf.pickle', 'rb') as f:
@@ -34,7 +34,7 @@ pixres = d['pixres']
 psf = d['image']
 
 mapnoise = np.mean(allmapnoise)
-print "Mean SCUBA-2 map noise is: ",mapnoise,'mJy'
+print("Mean SCUBA-2 map noise is: ",mapnoise,'mJy')
 
 smax_in = []
 rmax_in = []
